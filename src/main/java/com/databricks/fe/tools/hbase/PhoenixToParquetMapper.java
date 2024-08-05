@@ -4,6 +4,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.phoenix.mapreduce.PhoenixRecordWritable;
+import org.apache.phoenix.schema.PColumn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.avro.generic.GenericData;
@@ -12,6 +13,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 
 import java.io.IOException;
+import java.sql.SQLException;
+import java.util.Map;
 
 public class PhoenixToParquetMapper extends Mapper<NullWritable, PhoenixRecordWritable, Void, GenericRecord> {
     private static final Logger LOG = LoggerFactory.getLogger(PhoenixToParquetMapper.class);
@@ -31,7 +34,10 @@ public class PhoenixToParquetMapper extends Mapper<NullWritable, PhoenixRecordWr
     throws IOException, InterruptedException {
         GenericRecord record = new GenericData.Record(schema);
         for (Field field : schema.getFields()) {
-            record.put(field.name(), value.getResultMap().get(field.name()));
+            LOG.info("Field: " + field);
+            Object o = value.getResultMap().get(field.name());
+            LOG.info("Object type: " + (o != null ? o.getClass() : null));
+            record.put(field.name(), o);
         }
         LOG.info("Record: " + record);
         context.write(null, record);

@@ -1,7 +1,7 @@
 # HBase Phoenix Exporter
 
 This repo contains an example how to export data from Apache HBase with Apache Phoenix as the SQL layer.
-It uses a Hadoop MApReduce job and the provided `PhoenixInputFormat` class to read the data from the Phoenix tables and then writes to Parquet formatted files via the `ParquetOutputFormat`.
+It uses a Hadoop MapReduce job and the provided `PhoenixInputFormat` class to read the data from the Phoenix tables and then writes to Parquet formatted files via the `ParquetOutputFormat`.
 
 ## Building
 

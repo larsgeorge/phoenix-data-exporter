@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -95,8 +96,10 @@ public class PhoenixToParquetHelper {
         return pColumns;
     }
 
-    public Schema convertPColumnToParquetColumn(final PDataType<?> pDataType) {
+    public Schema convertPColumnToParquetColumn(final PColumn col) {
         Schema s = null;
+        @SuppressWarnings("rawtypes")
+        PDataType pDataType = col.getDataType(); 
         if (pDataType instanceof PBinary) {
             s = Schema.create(Schema.Type.BYTES);
         } else if (pDataType instanceof PBinaryArray) {
@@ -116,15 +119,7 @@ public class PhoenixToParquetHelper {
         } else if (pDataType instanceof PDateArray) {
             s = Schema.create(Schema.Type.LONG);
         } else if (pDataType instanceof PDecimal) {
-            // {
-            //     "type": "bytes",
-            //     "logicalType": "decimal",
-            //     "precision": 4,
-            //     "scale": 2
-            // }
-            // PDecimal pd = (PDecimal) pDataType;
-            // s = LogicalTypes.decimal(pd.precision, pd.getsscale).addToSchema(Schema.create(Type.BYTES)); 
-            s = Schema.create(Schema.Type.BYTES);
+            s = LogicalTypes.decimal(col.getMaxLength(), col.getScale()).addToSchema(Schema.create(Schema.Type.BYTES)); 
         } else if (pDataType instanceof PDecimalArray) {
             s = Schema.create(Schema.Type.BYTES);
         } else if (pDataType instanceof PDouble || pDataType instanceof PUnsignedDouble) {
@@ -148,14 +143,13 @@ public class PhoenixToParquetHelper {
         } else if (pDataType instanceof PSmallintArray || pDataType instanceof PUnsignedSmallintArray) {
             s = Schema.create(Schema.Type.INT);
         } else if (pDataType instanceof PTime || pDataType instanceof PUnsignedTime) {
-            // s = LogicalTypes.decimal(pd.precision, pd.getsscale).addToSchema(Schema.create(Type.BYTES));
-            s = Schema.create(Schema.Type.LONG);
+            s = LogicalTypes.timeMillis().addToSchema(Schema.create(Schema.Type.LONG));
         } else if (pDataType instanceof PTimeArray || pDataType instanceof PUnsignedTimeArray) {
-            s = Schema.create(Schema.Type.LONG);
+            s = LogicalTypes.timeMillis().addToSchema(Schema.create(Schema.Type.LONG));
         } else if (pDataType instanceof PTimestamp || pDataType instanceof PUnsignedTimestamp) {
-            s = Schema.create(Schema.Type.LONG);
+            s = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
         } else if (pDataType instanceof PTimestampArray || pDataType instanceof PUnsignedTimestampArray) {
-            s = Schema.create(Schema.Type.LONG);
+            s = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
         } else if (pDataType instanceof PTinyint || pDataType instanceof PUnsignedTinyint) {
             s = Schema.create(Schema.Type.INT);
         } else if (pDataType instanceof PTinyintArray || pDataType instanceof PUnsignedTinyintArray) {
@@ -177,12 +171,13 @@ public class PhoenixToParquetHelper {
 
     public Schema getAvroSchema(List<PColumn> cols) {
         List<Schema.Field> flds = new ArrayList<Schema.Field>();
+        LOG.info("Path: " + Schema.Field.class.getProtectionDomain().getCodeSource().getLocation()); 
         for (PColumn col : cols) {
-            Schema schema = convertPColumnToParquetColumn(col.getDataType());
+            Schema schema = convertPColumnToParquetColumn(col);
             LOG.info("Data type: " + col.getDataType() + " -> Converted schema: " + schema);
             LOG.info("Column Nullable: " + col.getDataType().isNullable());
             if (schema != null) {
-                Schema.Field fld = new Schema.Field(col.getName().toString(), schema, null, null);
+                Schema.Field fld = new Schema.Field(col.getName().toString(), schema, null, (Object) null);
                 flds.add(fld);
             }
         }
