@@ -16,7 +16,6 @@
         <phoenix.version>5.1.0</phoenix.version>
         <phoenix-hadoop.version>4.1.0</phoenix-hadoop.version>
         <parquet.version>1.14.1</parquet.version>
-        <avro.version>1.8.2</avro.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
@@ -33,7 +32,6 @@
             <artifactId>hadoop-mapreduce-client-core</artifactId>
             <version>${hadoop.version}</version>
         </dependency>
-
         <!-- Phoenix Dependencies -->
         <dependency>
             <groupId>org.apache.phoenix</groupId>
@@ -56,19 +54,6 @@
             <artifactId>parquet-hadoop</artifactId>
             <version>${parquet.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.parquet</groupId>
-            <artifactId>parquet-avro</artifactId>
-            <version>${parquet.version}</version>
-        </dependency>
-
-        <!-- Avro Dependency -->
-        <dependency>
-            <groupId>org.apache.avro</groupId>
-            <artifactId>avro</artifactId>
-            <version>${avro.version}</version>
-        </dependency>
-
         <!-- Other necessary dependencies -->
         <dependency>
             <groupId>commons-logging</groupId>

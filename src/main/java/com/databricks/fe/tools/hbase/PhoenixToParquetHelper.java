@@ -1,5 +1,26 @@
 package com.databricks.fe.tools.hbase;
 
+import static org.apache.parquet.schema.LogicalTypeAnnotation.dateType;
+import static org.apache.parquet.schema.LogicalTypeAnnotation.decimalType;
+// import static org.apache.parquet.schema.LogicalTypeAnnotation.enumType;
+import static org.apache.parquet.schema.LogicalTypeAnnotation.stringType;
+import static org.apache.parquet.schema.LogicalTypeAnnotation.timeType;
+import static org.apache.parquet.schema.LogicalTypeAnnotation.timestampType;
+// import static org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit.MICROS;
+import static org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit.MILLIS;
+// import static org.apache.parquet.schema.LogicalTypeAnnotation.uuidType;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BOOLEAN;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.DOUBLE;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.FLOAT;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT96;
+// import static org.apache.parquet.schema.Type.Repetition.REPEATED;
+import static org.apache.parquet.schema.Type.Repetition.OPTIONAL;
+import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -7,10 +28,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import org.apache.avro.LogicalTypes;
-import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
+import org.apache.parquet.schema.Type.Repetition;
+import org.apache.parquet.schema.Types;
 import org.apache.phoenix.jdbc.PhoenixConnection;
 import org.apache.phoenix.mapreduce.util.PhoenixConfigurationUtil;
 import org.apache.phoenix.schema.MetaDataClient;
@@ -68,155 +92,150 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PhoenixToParquetHelper {
-    private static final Logger LOG = LoggerFactory.getLogger(PhoenixToParquetHelper.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PhoenixToParquetHelper.class);
 
-    Configuration conf;
-    public PhoenixToParquetHelper(Configuration conf) {
-        this.conf = conf;
-    }
+  Configuration conf;
 
-    public LinkedHashMap<String, PColumn> getPColumns() throws SQLException {
-        String connectionString = "jdbc:phoenix:" + PhoenixConfigurationUtil.getInputCluster(conf);
-        String tableName = PhoenixConfigurationUtil.getInputTableName(conf);
-        String schemaName = "";
-        Connection con = DriverManager.getConnection(connectionString);
-        PhoenixConnection phoenixConnection = con.unwrap(PhoenixConnection.class);
-        MetaDataClient metaDataClient = new MetaDataClient(phoenixConnection);
-        PTable table = metaDataClient.updateCache(schemaName, tableName).getTable();
-        LinkedHashMap<String, PColumn> pColumns = new LinkedHashMap<String, PColumn>();
-        for (PColumn pColumn : table.getColumns()) {
-            LOG.debug("PColumn: " + pColumn);
-            String colName = pColumn.getName().getString();
-            if (!colName.equals(SaltingUtil.SALTING_COLUMN_NAME)) {
-                pColumns.put(colName, pColumn);
-            } else {
-                LOG.info("Skipping column: " + colName);
-            }
-        }
-        return pColumns;
-    }
+  public PhoenixToParquetHelper(Configuration conf) {
+    this.conf = conf;
+  }
 
-    public Schema convertPColumnToParquetColumn(final PColumn col) {
-        Schema s = null;
-        @SuppressWarnings("rawtypes")
-        PDataType pDataType = col.getDataType(); 
-        if (pDataType instanceof PBinary) {
-            s = Schema.create(Schema.Type.BYTES);
-        } else if (pDataType instanceof PBinaryArray) {
-            s = Schema.create(Schema.Type.BYTES);
-        } else if (pDataType instanceof PBoolean) {
-            s = Schema.create(Schema.Type.BOOLEAN);
-        } else if (pDataType instanceof PBooleanArray) {
-            s = Schema.create(Schema.Type.BOOLEAN);
-        } else if (pDataType instanceof PChar) {
-            s = Schema.create(Schema.Type.STRING);
-        } else if (pDataType instanceof PCharArray) {
-            s = Schema.create(Schema.Type.STRING);
-        } else if (pDataType instanceof PDate) {
-            s = Schema.create(Schema.Type.LONG);
-            // types.add(PUnsignedDate.INSTANCE);
-            // types.add(PUnsignedDateArray.INSTANCE);
-        } else if (pDataType instanceof PDateArray) {
-            s = Schema.create(Schema.Type.LONG);
-        } else if (pDataType instanceof PDecimal) {
-            s = LogicalTypes.decimal(col.getMaxLength(), col.getScale()).addToSchema(Schema.create(Schema.Type.BYTES)); 
-        } else if (pDataType instanceof PDecimalArray) {
-            s = Schema.create(Schema.Type.BYTES);
-        } else if (pDataType instanceof PDouble || pDataType instanceof PUnsignedDouble) {
-            s = Schema.create(Schema.Type.DOUBLE);
-        } else if (pDataType instanceof PDoubleArray || pDataType instanceof PUnsignedDoubleArray) {
-            s = Schema.create(Schema.Type.DOUBLE);
-        } else if (pDataType instanceof PFloat || pDataType instanceof PUnsignedFloat) {
-            s = Schema.create(Schema.Type.FLOAT);
-        } else if (pDataType instanceof PFloatArray || pDataType instanceof PUnsignedFloatArray) {
-            s = Schema.create(Schema.Type.FLOAT);
-        } else if (pDataType instanceof PInteger || pDataType instanceof PUnsignedInt) {
-            s = Schema.create(Schema.Type.INT);
-        } else if (pDataType instanceof PIntegerArray || pDataType instanceof PUnsignedIntArray) {
-            s = Schema.create(Schema.Type.INT);
-        } else if (pDataType instanceof PLong || pDataType instanceof PUnsignedLong) {
-            s = Schema.create(Schema.Type.LONG);
-        } else if (pDataType instanceof PLongArray || pDataType instanceof PUnsignedLongArray) {
-            s = Schema.create(Schema.Type.LONG);
-        } else if (pDataType instanceof PSmallint || pDataType instanceof PUnsignedSmallint) {
-            s = Schema.create(Schema.Type.INT);
-        } else if (pDataType instanceof PSmallintArray || pDataType instanceof PUnsignedSmallintArray) {
-            s = Schema.create(Schema.Type.INT);
-        } else if (pDataType instanceof PTime || pDataType instanceof PUnsignedTime) {
-            s = LogicalTypes.timeMillis().addToSchema(Schema.create(Schema.Type.LONG));
-        } else if (pDataType instanceof PTimeArray || pDataType instanceof PUnsignedTimeArray) {
-            s = LogicalTypes.timeMillis().addToSchema(Schema.create(Schema.Type.LONG));
-        } else if (pDataType instanceof PTimestamp || pDataType instanceof PUnsignedTimestamp) {
-            s = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
-        } else if (pDataType instanceof PTimestampArray || pDataType instanceof PUnsignedTimestampArray) {
-            s = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
-        } else if (pDataType instanceof PTinyint || pDataType instanceof PUnsignedTinyint) {
-            s = Schema.create(Schema.Type.INT);
-        } else if (pDataType instanceof PTinyintArray || pDataType instanceof PUnsignedTinyintArray) {
-            s = Schema.create(Schema.Type.INT);
-        } else if (pDataType instanceof PVarbinary) {
-            s = Schema.create(Schema.Type.BYTES);
-        } else if (pDataType instanceof PVarbinaryArray) {
-            s = Schema.create(Schema.Type.BYTES);
-        } else if (pDataType instanceof PVarchar) {
-            s = Schema.create(Schema.Type.STRING);
-        } else if (pDataType instanceof PVarcharArray) {
-            s = Schema.create(Schema.Type.STRING);
-        }  
-        if (//pDataType.isNullable() && 
-            s != null)
-            s = Schema.createUnion(List.of(s, Schema.create(Schema.Type.NULL)));
-        return s;
+  public LinkedHashMap<String, PColumn> getPColumns() throws SQLException {
+    String connectionString = "jdbc:phoenix:" + PhoenixConfigurationUtil.getInputCluster(conf);
+    String tableName = PhoenixConfigurationUtil.getInputTableName(conf);
+    String schemaName = "";
+    Connection con = DriverManager.getConnection(connectionString);
+    PhoenixConnection phoenixConnection = con.unwrap(PhoenixConnection.class);
+    MetaDataClient metaDataClient = new MetaDataClient(phoenixConnection);
+    PTable table = metaDataClient.updateCache(schemaName, tableName).getTable();
+    LinkedHashMap<String, PColumn> pColumns = new LinkedHashMap<String, PColumn>();
+    for (PColumn pColumn : table.getColumns()) {
+      LOG.debug("PColumn: " + pColumn);
+      String colName = pColumn.getName().getString();
+      if (!colName.equals(SaltingUtil.SALTING_COLUMN_NAME)) {
+        pColumns.put(colName, pColumn);
+      } else {
+        LOG.info("Skipping column: " + colName);
+      }
     }
+    return pColumns;
+  }
 
-    public Schema getAvroSchema(List<PColumn> cols) {
-        List<Schema.Field> flds = new ArrayList<Schema.Field>();
-        LOG.info("Path: " + Schema.Field.class.getProtectionDomain().getCodeSource().getLocation()); 
-        for (PColumn col : cols) {
-            Schema schema = convertPColumnToParquetColumn(col);
-            LOG.info("Data type: " + col.getDataType() + " -> Converted schema: " + schema);
-            LOG.info("Column Nullable: " + col.getDataType().isNullable());
-            if (schema != null) {
-                Schema.Field fld = new Schema.Field(col.getName().toString(), schema, null, (Object) null);
-                flds.add(fld);
-            }
-        }
-        LOG.debug("Number of converted columns: " + flds.size());
-        Schema row = Schema.createRecord("row", null, null, false);
-        row.setFields(flds);
-        return row;
+  public Type convertPColumnToParquetColumn(final PColumn col) {
+    Types.PrimitiveBuilder<PrimitiveType> builder = null;
+    @SuppressWarnings("rawtypes")
+    PDataType pDataType = col.getDataType();
+    Repetition repetition = col.isNullable() ? OPTIONAL : REQUIRED;
+    if (pDataType instanceof PBinary) {
+      builder = Types.primitive(BINARY, repetition);
+    } else if (pDataType instanceof PBinaryArray) {
+      // TODO
+    } else if (pDataType instanceof PBoolean) {
+      builder = Types.primitive(BOOLEAN, repetition);
+    } else if (pDataType instanceof PBooleanArray) {
+      // TODO
+    } else if (pDataType instanceof PChar) {
+      builder = Types.primitive(FIXED_LEN_BYTE_ARRAY, repetition).as(stringType());
+    } else if (pDataType instanceof PCharArray) {
+      // TODO
+    } else if (pDataType instanceof PDate) {
+      builder = Types.primitive(INT64, repetition).as(dateType());
+      // types.add(PUnsignedDate.INSTANCE);
+      // types.add(PUnsignedDateArray.INSTANCE);
+    } else if (pDataType instanceof PDateArray) {
+      // TODO
+    } else if (pDataType instanceof PDecimal) {
+      builder = Types.primitive(BINARY, repetition).as(decimalType(col.getMaxLength(), col.getScale()));
+    } else if (pDataType instanceof PDecimalArray) {
+      // TODO
+    } else if (pDataType instanceof PDouble || pDataType instanceof PUnsignedDouble) {
+      builder = Types.primitive(DOUBLE, repetition);
+    } else if (pDataType instanceof PDoubleArray || pDataType instanceof PUnsignedDoubleArray) {
+      // TODO
+    } else if (pDataType instanceof PFloat || pDataType instanceof PUnsignedFloat) {
+      builder = Types.primitive(FLOAT, repetition);
+    } else if (pDataType instanceof PFloatArray || pDataType instanceof PUnsignedFloatArray) {
+      // TODO
+    } else if (pDataType instanceof PInteger || pDataType instanceof PUnsignedInt) {
+      builder = Types.primitive(INT32, repetition);
+    } else if (pDataType instanceof PIntegerArray || pDataType instanceof PUnsignedIntArray) {
+      // TODO
+    } else if (pDataType instanceof PLong || pDataType instanceof PUnsignedLong) {
+      builder = Types.primitive(INT64, repetition);
+    } else if (pDataType instanceof PLongArray || pDataType instanceof PUnsignedLongArray) {
+      // TODO
+    } else if (pDataType instanceof PSmallint || pDataType instanceof PUnsignedSmallint) {
+      builder = Types.primitive(INT32, repetition);
+    } else if (pDataType instanceof PSmallintArray || pDataType instanceof PUnsignedSmallintArray) {
+      // TODO
+    } else if (pDataType instanceof PTime || pDataType instanceof PUnsignedTime) {
+      builder = Types.primitive(INT64, repetition).as(timeType(true, MILLIS));
+    } else if (pDataType instanceof PTimeArray || pDataType instanceof PUnsignedTimeArray) {
+      // TODO
+    } else if (pDataType instanceof PTimestamp || pDataType instanceof PUnsignedTimestamp) {
+      builder = Types.primitive(INT64, repetition).as(timestampType(true, MILLIS));
+    } else if (pDataType instanceof PTimestampArray || pDataType instanceof PUnsignedTimestampArray) {
+      // TODO
+    } else if (pDataType instanceof PTinyint || pDataType instanceof PUnsignedTinyint) {
+      builder = Types.primitive(INT32, repetition);
+    } else if (pDataType instanceof PTinyintArray || pDataType instanceof PUnsignedTinyintArray) {
+      // TODO
+    } else if (pDataType instanceof PVarbinary) {
+      builder = Types.primitive(BINARY, repetition).as(stringType());
+    } else if (pDataType instanceof PVarbinaryArray) {
+      // TODO
+    } else if (pDataType instanceof PVarchar) {
+      builder = Types.primitive(BINARY, repetition).as(stringType());
+    } else if (pDataType instanceof PVarcharArray) {
+      // TODO
+    } else {
+      throw new IllegalStateException("Invalid Phoenix data type: " + pDataType);
     }
+    return builder != null ? builder.named(col.getName().getString()) : null;
+  }
 
-    public Schema getAvroSchema() throws SQLException {
-        LinkedHashMap<String, PColumn> cols = getPColumns();
-        List<PColumn> pCols = new ArrayList<>();
-        for (String colName : cols.keySet()) { 
-            PColumn col = cols.get(colName);
-            pCols.add(col);
-        }
-        Schema schema = getAvroSchema(pCols);
-        return schema;
+  public MessageType getParquetSchema(List<PColumn> cols) {
+    List<Type> flds = new ArrayList<Type>();
+    for (PColumn col : cols) {
+      Type type = convertPColumnToParquetColumn(col);
+      LOG.info("Data type: " + col.getDataType() + " -> Converted type: " + type);
+      LOG.info("Column Nullable: " + col.isNullable());
+      if (type != null) {
+        flds.add(type);
+      }
     }
+    LOG.debug("Number of converted columns: " + flds.size());
+    return new MessageType("row", flds);
+  }
 
-    public static void main(String[] args) {
-        Configuration conf = HBaseConfiguration.create();
-        PhoenixConfigurationUtil.setInputCluster(conf, "localhost:2181");
-        PhoenixConfigurationUtil.setInputTableName(conf, "JAVATEST");
-        PhoenixToParquetHelper helper = new PhoenixToParquetHelper(conf);
-        try {
-            LinkedHashMap<String, PColumn> cols = helper.getPColumns();
-            List<PColumn> pCols = new ArrayList<>();
-            for (String colName : cols.keySet()) { 
-                PColumn col = cols.get(colName);
-                System.out.println("Column: " + colName + " -> " + col.getDataType());
-                pCols.add(col);
-            }
-            Schema schema = helper.getAvroSchema(pCols);
-            System.out.println(schema);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+  public MessageType getParquetSchema() throws SQLException {
+    LinkedHashMap<String, PColumn> cols = getPColumns();
+    List<PColumn> pCols = new ArrayList<>();
+    for (String colName : cols.keySet()) {
+      PColumn col = cols.get(colName);
+      pCols.add(col);
     }
+    MessageType schema = getParquetSchema(pCols);
+    return schema;
+  }
+
+  public static void main(String[] args) {
+    Configuration conf = HBaseConfiguration.create();
+    PhoenixConfigurationUtil.setInputCluster(conf, "localhost:2181");
+    PhoenixConfigurationUtil.setInputTableName(conf, "JAVATEST");
+    PhoenixToParquetHelper helper = new PhoenixToParquetHelper(conf);
+    try {
+      LinkedHashMap<String, PColumn> cols = helper.getPColumns();
+      List<PColumn> pCols = new ArrayList<>();
+      for (String colName : cols.keySet()) {
+        PColumn col = cols.get(colName);
+        System.out.println("Column: " + colName + " -> " + col.getDataType());
+        pCols.add(col);
+      }
+      MessageType schema = helper.getParquetSchema(pCols);
+      System.out.println(schema);
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+  }
 }
-
-
