@@ -198,13 +198,12 @@ public class PhoenixToParquetHelper {
     List<Type> flds = new ArrayList<Type>();
     for (PColumn col : cols) {
       Type type = convertPColumnToParquetColumn(col);
-      LOG.info("Data type: " + col.getDataType() + " -> Converted type: " + type);
-      LOG.info("Column Nullable: " + col.isNullable());
+      LOG.info("Data type: " + col.getDataType() + " -> Converted type: " + type + " - Nullable: " + col.isNullable());
       if (type != null) {
         flds.add(type);
       }
     }
-    LOG.debug("Number of converted columns: " + flds.size());
+    LOG.info("Number of converted columns: " + flds.size());
     return new MessageType("row", flds);
   }
 
