@@ -39,7 +39,7 @@ public class PhoenixToParquetWriteSupport extends WriteSupport<PhoenixRecordWrit
     try {
       pColumns = helper.getPColumns();
       schema = helper.getParquetSchema(new ArrayList<>(pColumns.values()));
-      LOG.info("Schema: " + schema);
+      LOG.debug("Schema: " + schema);
     } catch (SQLException e) {
       throw new RuntimeException("An error occurred.", e);
     }
@@ -55,20 +55,20 @@ public class PhoenixToParquetWriteSupport extends WriteSupport<PhoenixRecordWrit
   @Override
   public void write(PhoenixRecordWritable record) {
     recordConsumer.startMessage();
-    LOG.info("Writing record...");
+    LOG.debug("Writing record...");
     writeRecordFields(record);
     recordConsumer.endMessage();
   }
 
   private void writeRecordFields(PhoenixRecordWritable record) {
     int index = 0;
-    LOG.info("Num flds: " + schema.getFields().size());
+    LOG.debug("Num flds: " + schema.getFields().size());
     for (Type fld : schema.getFields()) {
       Object value = record.getResultMap().get(fld.getName());
-      LOG.info("Index: " + index);
-      LOG.info("Field: " + fld);
-      LOG.info("Object class: " + (value != null ? value.getClass() : null));
-      LOG.info("Object value: " + value);
+      LOG.debug("Index: " + index);
+      LOG.debug("Field: " + fld);
+      LOG.debug("Object class: " + (value != null ? value.getClass() : null));
+      LOG.debug("Object value: " + value);
       if (value != null) {
         recordConsumer.startField(fld.getName(), index);
         writeValue(fld, value);

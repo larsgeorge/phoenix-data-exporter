@@ -115,7 +115,7 @@ public class PhoenixToParquetHelper {
       if (!colName.equals(SaltingUtil.SALTING_COLUMN_NAME)) {
         pColumns.put(colName, pColumn);
       } else {
-        LOG.info("Skipping column: " + colName);
+        LOG.debug("Skipping column: " + colName);
       }
     }
     return pColumns;
@@ -198,12 +198,12 @@ public class PhoenixToParquetHelper {
     List<Type> flds = new ArrayList<Type>();
     for (PColumn col : cols) {
       Type type = convertPColumnToParquetColumn(col);
-      LOG.info("Data type: " + col.getDataType() + " -> Converted type: " + type + " - Nullable: " + col.isNullable());
+      LOG.debug("Data type: " + col.getDataType() + " -> Converted type: " + type + " - Nullable: " + col.isNullable());
       if (type != null) {
         flds.add(type);
       }
     }
-    LOG.info("Number of converted columns: " + flds.size());
+    LOG.debug("Number of converted columns: " + flds.size());
     return new MessageType("row", flds);
   }
 
