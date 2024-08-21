@@ -145,7 +145,7 @@ public class PhoenixToParquetHelper {
     } else if (pDataType instanceof PDateArray) {
       // TODO
     } else if (pDataType instanceof PDecimal) {
-      builder = Types.primitive(BINARY, repetition).as(decimalType(col.getMaxLength(), col.getScale()));
+      builder = Types.primitive(BINARY, repetition).as(decimalType(col.getScale(), col.getMaxLength()));
     } else if (pDataType instanceof PDecimalArray) {
       // TODO
     } else if (pDataType instanceof PDouble || pDataType instanceof PUnsignedDouble) {
@@ -221,7 +221,7 @@ public class PhoenixToParquetHelper {
   public static void main(String[] args) {
     Configuration conf = HBaseConfiguration.create();
     PhoenixConfigurationUtil.setInputCluster(conf, "localhost:2181");
-    PhoenixConfigurationUtil.setInputTableName(conf, "JAVATEST");
+    PhoenixConfigurationUtil.setInputTableName(conf, "BOOKINGS");
     PhoenixToParquetHelper helper = new PhoenixToParquetHelper(conf);
     try {
       LinkedHashMap<String, PColumn> cols = helper.getPColumns();

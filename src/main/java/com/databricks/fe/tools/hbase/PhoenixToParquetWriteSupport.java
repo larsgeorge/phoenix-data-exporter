@@ -112,7 +112,7 @@ public class PhoenixToParquetWriteSupport extends WriteSupport<PhoenixRecordWrit
         } else if (field.asPrimitiveType().getLogicalTypeAnnotation() instanceof StringLogicalTypeAnnotation) {
           recordConsumer.addBinary(Binary.fromString((String) value));
         } else if (field.asPrimitiveType().getLogicalTypeAnnotation() instanceof DecimalLogicalTypeAnnotation) {
-          recordConsumer.addDouble(((BigDecimal) value).floatValue());
+          recordConsumer.addBinary(Binary.fromConstantByteArray(((BigDecimal) value).unscaledValue().toByteArray()));
         } else {
           recordConsumer.addBinary(Binary.fromReusedByteArray(value.toString().getBytes()));
         }
